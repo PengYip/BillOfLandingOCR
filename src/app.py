@@ -113,19 +113,17 @@ def main():
                         st.dataframe(goods_info, hide_index=True)
                         
                         # 添加导出按钮
-                        if st.button("导出结果"):
-                            # 构建CSV格式数据
-                            csv_data = "提单号,发运港口,收货港口,发货人,收货人,通知人,货物品名,货物数量,独立箱数,发运时间\n"
-                            csv_data += f"{bill_info.bill_number},{bill_info.departure_port},{bill_info.arrival_port},{bill_info.shipper},{bill_info.consignee},{bill_info.notify_party},{bill_info.goods_name},{bill_info.quantity},{bill_info.container_count},{bill_info.shipping_date}"
-                            
-                            # 使用Streamlit的下载功能
-                            st.download_button(
-                                label="下载CSV文件",
-                                data=csv_data.encode('utf-8-sig'),
-                                file_name="提单信息.csv",
-                                mime="text/csv"
-                            )
-                            st.success("点击上方按钮下载CSV文件！")
+                        csv_data = "提单号,发运港口,收货港口,发货人,收货人,通知人,货物品名,货物数量,独立箱数,发运时间\n"
+                        csv_data += f"{bill_info.bill_number},{bill_info.departure_port},{bill_info.arrival_port},{bill_info.shipper},{bill_info.consignee},{bill_info.notify_party},{bill_info.goods_name},{bill_info.quantity},{bill_info.container_count},{bill_info.shipping_date}"
+                        
+                        # 使用Streamlit的下载功能
+                        st.download_button(
+                            label="导出CSV文件",
+                            data=csv_data.encode('utf-8-sig'),
+                            file_name="提单信息.csv",
+                            mime="text/csv",
+                            help="点击下载提单信息的CSV文件"
+                        )
                         
                         # 添加翻译按钮
                         if st.button("一键翻译"):
@@ -133,22 +131,33 @@ def main():
                                 translated_info = extractor.translate(bill_info)
                                 
                                 st.subheader("翻译结果")
-                                col3, col4 = st.columns(2)
-                                with col3:
-                                    st.write("基本信息：")
-                                    st.write(f"提单号：{translated_info.bill_number}")
-                                    st.write(f"发运港口：{translated_info.departure_port}")
-                                    st.write(f"收货港口：{translated_info.arrival_port}")
-                                    st.write(f"发运时间：{translated_info.shipping_date}")
-                                with col4:
-                                    st.write("相关方信息：")
-                                    st.write(f"发货人：{translated_info.shipper}")
-                                    st.write(f"收货人：{translated_info.consignee}")
-                                    st.write(f"通知人：{translated_info.notify_party}")
+                                
+                                # 基本信息表格（翻译结果）
+                                basic_info_translated = {
+                                    "字段": ["提单号", "发运港口", "收货港口", "发运时间"],
+                                    "值": [translated_info.bill_number, translated_info.departure_port, 
+                                          translated_info.arrival_port, translated_info.shipping_date]
+                                }
+                                st.write("基本信息：")
+                                st.dataframe(basic_info_translated, hide_index=True)
+                                
+                                # 相关方信息表格（翻译结果）
+                                party_info_translated = {
+                                    "字段": ["发货人", "收货人", "通知人"],
+                                    "值": [translated_info.shipper, translated_info.consignee, 
+                                          translated_info.notify_party]
+                                }
+                                st.write("相关方信息：")
+                                st.dataframe(party_info_translated, hide_index=True)
+                                
+                                # 货物信息表格（翻译结果）
+                                goods_info_translated = {
+                                    "字段": ["货物品名", "货物数量", "独立箱数"],
+                                    "值": [translated_info.goods_name, translated_info.quantity, 
+                                          translated_info.container_count]
+                                }
                                 st.write("货物信息：")
-                                st.write(f"货物品名：{translated_info.goods_name}")
-                                st.write(f"货物数量：{translated_info.quantity}")
-                                st.write(f"独立箱数：{translated_info.container_count}")
+                                st.dataframe(goods_info_translated, hide_index=True)
                     except Exception as e:
                         st.warning(f"提取结构化信息时发生错误：{str(e)}")
                 else:
