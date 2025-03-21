@@ -48,7 +48,15 @@ class BillExtractor:
             )
         
         template = """
-        从以下提单文本中提取关键信息。请仔细分析文本内容，提取以下字段：
+        从以下提单文本中提取关键信息。在提取之前，请先对文本进行规范化处理：
+        1. 确保英文单词之间只有一个空格，例如将"TRAD E GROUP"修正为"TRADE GROUP"
+        2. 删除多余的空格，包括行首和行尾的空格
+        3. 保持合理的换行格式，避免在单词中间换行（如"TRAD E"应为"TRADE"）
+        4. 正确处理英文单词的边界，确保词语完整性（如"CHANGJIANG"不应被分割）
+        5. 对于连续大写字母的公司名称，需要根据语义正确分词（如"TRADINGSUPPLYCHAINMANAGEMENTCO"应修正为"TRADING SUPPLY CHAIN MANAGEMENT CO"）
+        6. 对于公司名称等专有名词，保持其原有的大小写格式
+
+        然后从处理后的文本中提取以下字段：
         - 提单号
         - 发运港口
         - 收货港口
@@ -76,7 +84,8 @@ class BillExtractor:
         """从文本中提取结构化的提单信息"""
         _input = self.prompt.format(text=text)
         output = self.llm.predict(_input)
-        return self.parser.parse(output)
+        bill_info = self.parser.parse(output)
+        return bill_info
     
     def translate(self, bill_info: BillInfo) -> BillTranslation:
         """将提单信息翻译成中文"""
