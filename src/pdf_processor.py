@@ -61,16 +61,12 @@ class PDFProcessor:
     def process_pdf(self, 
                     input_path: str,
                     output_path: str,
-                    remove_watermark_params: Optional[dict] = None,
-                    enhance_params: Optional[dict] = None,
                     dpi: int = 200) -> str:
         """
-        处理PDF文件，支持去水印和图像增强
+        处理PDF文件
         Args:
             input_path: 输入PDF文件路径
             output_path: 输出PDF文件路径
-            remove_watermark_params: 去水印参数
-            enhance_params: 图像增强参数
             dpi: PDF转图像的分辨率
         Returns:
             处理后的PDF文件路径
@@ -78,17 +74,7 @@ class PDFProcessor:
         # 将PDF转换为图像
         images = self.pdf_to_images(input_path, dpi)
         
-        # 处理每一页图像
-        processed_images = []
-        for image in images:
-            processed = self.image_preprocessor.preprocess_image(
-                image,
-                remove_watermark_params=remove_watermark_params,
-                enhance_params=enhance_params
-            )
-            processed_images.append(processed)
-        
         # 保存为PDF
-        self.images_to_pdf(processed_images, output_path)
+        self.images_to_pdf(images, output_path)
         
         return output_path

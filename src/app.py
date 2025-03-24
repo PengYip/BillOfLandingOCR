@@ -8,9 +8,9 @@ from bill_extractor import BillExtractor
 from image_preprocessor import ImagePreprocessor
 from pdf_processor import PDFProcessor
 
-st.set_page_config(page_title="OCR PDF处理器", layout="wide")
+st.set_page_config(page_title="提单PDF信息识别与提取", layout="wide")
 
-st.title("PDF OCR处理器")
+st.title("提单PDF信息识别与提取")
 
 @st.cache_resource
 def get_pipeline():
@@ -31,18 +31,6 @@ def process_pdf(pipeline, uploaded_file, output_path, remove_watermark=False, wa
         
         if not pdf_path.exists() or pdf_path.stat().st_size == 0:
             raise FileNotFoundError(f"临时文件创建失败或为空：{pdf_path}")
-        
-        # 如果需要去水印，先进行预处理
-        if remove_watermark:
-            pdf_processor = PDFProcessor()
-            processed_pdf_path = temp_path / f"processed_{uploaded_file.name}"
-            pdf_processor.process_pdf(
-                str(pdf_path),
-                str(processed_pdf_path),
-                remove_watermark_params=watermark_params,
-                enhance_params=enhance_params
-            )
-            pdf_path = processed_pdf_path
         
         # 处理PDF文件
         output = pipeline.predict(
@@ -133,7 +121,13 @@ def extract_bill_info(extractor, markdown_result):
     
     return bill_info
 
-def translate_bill_info(extractor, bill_info):
+def translate_bill_info(extractor, bill_info=None):
+    if bill_info is None:
+        if 'bill_info' not in st.session_state:
+            st.warning("请先提取提单信息")
+            return
+        bill_info = st.session_state.bill_info
+    
     translated_info = extractor.translate(bill_info)
     
     basic_info_translated = {
@@ -177,64 +171,16 @@ def display_pdf_and_markdown(pdf_path, markdown_result):
     with st.expander("查看Markdown源码", expanded=False):
         st.text_area("Markdown内容", markdown_result, height=400)
 
-def preview_watermark_removal():
-    st.title("水印去除预览")
-    
-    # 上传图片
-    uploaded_file = st.file_uploader("上传图片", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        # 读取图片
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        
-        # 添加去水印参数控制
-        st.sidebar.markdown("### 去水印参数")
-        brightness_threshold = st.sidebar.slider("亮度阈值", 0, 255, 200)
-        saturation_threshold = st.sidebar.slider("饱和度阈值", 0, 255, 30)
-        contrast_alpha = st.sidebar.slider("对比度增强系数", 0.1, 3.0, 1.3)
-        contrast_beta = st.sidebar.slider("亮度调整值", -100, 100, 0)
-        
-        # 添加图像增强参数控制
-        st.sidebar.markdown("### 图像增强参数")
-        brightness = st.sidebar.slider("亮度", 0.1, 3.0, 1.0)
-        contrast = st.sidebar.slider("对比度", 0.1, 3.0, 1.0)
-        sharpness = st.sidebar.slider("锐化程度", 0.1, 3.0, 1.0)
-        
-        # 设置参数
-        watermark_params = {
-            'brightness_threshold': brightness_threshold,
-            'saturation_threshold': saturation_threshold,
-            'contrast_alpha': contrast_alpha,
-            'contrast_beta': contrast_beta
-        }
-        
-        enhance_params = {
-            'brightness': brightness,
-            'contrast': contrast,
-            'sharpness': sharpness
-        }
-        
-        # 处理图像
-        preprocessor = ImagePreprocessor()
-        processed_image = preprocessor.preprocess_image(
-            image,
-            remove_watermark_params=watermark_params,
-            enhance_params=enhance_params
-        )
-        
-        # 显示原图和处理后的图像
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### 原图")
-            st.image(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        with col2:
-            st.markdown("### 处理后的图像")
-            st.image(cv2.cvtColor(processed_image, cv2.COLOR_BGR2RGB))
+
 
 def main():
     # 创建状态容器
     status_container = st.container()
+    
+    # 缓存已提取的提单信息
+    if 'bill_info' not in st.session_state:
+        st.session_state.bill_info = None
+
     with status_container:
         pdf_status = st.empty()
         extract_status = st.empty()
@@ -246,37 +192,7 @@ def main():
     base_url = st.sidebar.text_input("DeepSeek API URL", value="https://api.lkeap.cloud.tencent.com/v1", type="password")
     extractor = BillExtractor(api_key, model_type="deepseek", base_url=base_url) if api_key and base_url else None
     
-    # 添加去水印选项
-    st.sidebar.markdown("### 图像预处理选项")
-    remove_watermark = st.sidebar.checkbox("去除水印")
-    
-    watermark_params = None
-    enhance_params = None
-    
-    if remove_watermark:
-        st.sidebar.markdown("#### 去水印参数")
-        brightness_threshold = st.sidebar.slider("亮度阈值", 0, 255, 200)
-        saturation_threshold = st.sidebar.slider("饱和度阈值", 0, 255, 30)
-        contrast_alpha = st.sidebar.slider("对比度系数", 0.1, 3.0, 1.3)
-        contrast_beta = st.sidebar.slider("亮度调整", -100, 100, 0)
-        
-        watermark_params = {
-            'brightness_threshold': brightness_threshold,
-            'saturation_threshold': saturation_threshold,
-            'contrast_alpha': contrast_alpha,
-            'contrast_beta': contrast_beta
-        }
-        
-        st.sidebar.markdown("#### 图像增强参数")
-        brightness = st.sidebar.slider("亮度", 0.1, 3.0, 1.0)
-        contrast = st.sidebar.slider("对比度", 0.1, 3.0, 1.0)
-        sharpness = st.sidebar.slider("锐化", 0.1, 3.0, 1.0)
-        
-        enhance_params = {
-            'brightness': brightness,
-            'contrast': contrast,
-            'sharpness': sharpness
-        }
+
     
     uploaded_file = st.file_uploader("上传PDF文件", type=["pdf"])
     
@@ -290,9 +206,7 @@ def main():
                         pipeline,
                         uploaded_file,
                         "output",
-                        remove_watermark=remove_watermark,
-                        watermark_params=watermark_params,
-                        enhance_params=enhance_params
+
                     )
                     pdf_status.success("PDF处理完成！")
             
@@ -311,7 +225,9 @@ def main():
                         with st.spinner("正在翻译..."):
                             translate_status.info("正在使用AI翻译，请稍候...")
                             st.subheader("翻译结果")
-                            translate_bill_info(extractor, bill_info)
+                            if st.session_state.bill_info is None:
+                                st.session_state.bill_info = bill_info
+                            translate_bill_info(extractor, st.session_state.bill_info)
                             translate_status.success("翻译完成！")
             else:
                 st.info("请输入OpenAI API Key以启用提单信息提取功能")
